@@ -1,0 +1,201 @@
+---
+title: "PEC2 - Diseño y Análisis de Experimentos"
+author: "Diego Vallarino"
+date: "17/11/2021"
+output: 
+  pdf_document: 
+    number_sections: yes
+    latex_engine: xelatex
+---
+
+# Ejercicio UNO
+
+Considerando el siguiente planteo de experimento: "los datos provienen de la realización de un experimento con *diseño completamente al azar y estructura factorial* en el que se realizaron tres réplicas por condicion experimental", se utilizaará la siguiente metodología:
+
+## Levantar la Librerias
+
+```{r, warning=FALSE, message=FALSE}
+
+library(car)
+library(MASS)
+library(psych)
+library(agricolae)
+library(mixlm)
+```
+
+## Cargamos los datos
+
+```{r, warning=FALSE, message=FALSE}
+datos_bio <- read.csv("D:/Master en BioEstadistica/Materias/3.Analisis de Experimentos/PEC2/datos_bio.csv", sep=";")
+df<-datos_bio
+head(df)
+str(df)
+```
+
+## Descriptiva de cada Factor y de la Interaccion
+
+```{r, warning=FALSE, message=FALSE}
+
+boxplot(df$Biodegradacion~df$Nutrientes)
+
+boxplot(df$Biodegradacion~df$Inoculo)
+
+interaction.plot(df$Inoculo, df$Nutrientes, df$Biodegradacion)
+
+interaction.plot(df$Nutrientes, df$Inoculo, df$Biodegradacion)
+```
+
+## Modelamos
+
+```{r, warning=FALSE, message=FALSE}
+modelo<-aov(Biodegradacion~Inoculo*Nutrientes, data = df)
+summary(modelo)
+```
+
+## Supuestos del Modelo
+
+```{r, warning=FALSE, message=FALSE}
+condition <- with(df, interaction(Inoculo, Nutrientes))
+condition
+leveneTest(Biodegradacion ~ condition, data = df)
+
+plot(modelo, which = 2)
+shapiro.test(modelo$residuals)
+```
+
+NOTA: como NO se cumple la normalidad de los residuos del modelo pero SI la homocedasticidad, debemos ajustar algunas de las variables, y modelar nuevamente.
+
+```{r, warning=FALSE, message=FALSE}
+bct<-boxcox(Biodegradacion~Inoculo*Nutrientes,lambda = seq(-1, 1, length = 10),data=df,plotit=T)
+lambda<-bct$x[which.max(bct$y)]
+lambda
+gm<-geometric.mean(df$Biodegradacion)
+lambda<- -0.88
+df$Bio<-(df$Biodegradacion^lambda-1)/(lambda*gm^(lambda-1))
+
+modelo2<-aov(Bio~Inoculo*Nutrientes, data = df)
+summary(modelo2)
+
+shapiro.test(modelo2$residuals)
+
+```
+
+Se levantó la restriccion de normalidad de los residuos, por lo que pasamos a analizar el nuevo modelo *modelo2*
+
+```{r, warning=FALSE, message=FALSE}
+anova(modelo2)
+```
+
+## Las medias por niveles y por condiciones experimentales
+
+```{r, warning=FALSE, message=FALSE}
+model.tables(modelo2, type = "mean")
+```
+
+Y para obtener las estimacipón de los efectos principales e interacciones, haremos lo siguiente:
+
+```{r, warning=FALSE, message=FALSE}
+model.tables(modelo2, type = "effects")
+```
+
+Dado que la interacción ha sido significativa, debemos hacer un test más:
+
+```{r, warning=FALSE, message=FALSE}
+modelo3 <- aov(Bio ~ condition, data = df)
+HSD.test(modelo3, "condition", console = TRUE)
+```
+
+Podemos afimar que no existen diferencias relevante en los tratamientos con las siguientes caracteristicas:
+
+<style type="text/css">
+    ol { list-style-type: upper-alpha; }
+</style>
+
+- CFU1.2.20% 2363.494
+- CFU1.2.25% 2358.750
+- CFU1.5.15% 2358.564
+
+# Ejercicio DOS
+
+Considernado que el experimento cuenta con las siguientes caracteristicas de diseño e implementacion "los datos presentados se refieren a la determinación de colonias aeróbicas en cuatro *aulas informáticas elegidas al azar* de la Universidad, cuyas muestras fueron tomadas por *dos técnicos de laboratorio elegidos al azar* del Departamento de Microbilogía", utulizaremos la siguiente metodología (o pasos).
+
+## Cargamos los datos
+
+```{r, warning=FALSE, message=FALSE}
+
+micro <- read.csv("D:/Master en BioEstadistica/Materias/3.Analisis de Experimentos/PEC2/micro.csv", sep=";")
+df2<-micro
+head(df2)
+str(df2)
+```
+
+## Descriptiva de cada Factor y de la Interaccion
+
+```{r, warning=FALSE, message=FALSE}
+
+boxplot(df2$recuento~df2$aula)
+
+boxplot(df2$recuento~df2$tecnico)
+
+interaction.plot(df2$aula, df2$tecnico, df2$recuento)
+
+interaction.plot(df2$tecnico,df2$aula,df2$recuento)
+```
+
+## Modelamos
+
+```{r, warning=FALSE, message=FALSE}
+df2$aula<-as.factor(df2$aula)
+df2$tecnico<-as.factor(df2$tecnico)
+modelo4<-lm(recuento ~ r(tecnico)*r(aula), data = df2)
+summary(modelo4)
+```
+
+## Supuestos del Modelo
+
+```{r, warning=FALSE, message=FALSE}
+condition2 <- with(df2, interaction(aula, tecnico))
+leveneTest(recuento ~ condition2, data = df2)
+shapiro.test(modelo4$residuals)
+```
+
+NOTA: confirmamos que el modelo cumple con los principales supuestos, por lo que no hay que ajustar las variables.Por ende, asumiremos las suposiciones de la modelización, y pasaremos a resolver los contrastes de interés. Los contrastes a resolver son: 
+
+<style type="text/css">
+    ol { list-style-type: upper-alpha; }
+</style>
+
+- $H_0 : σ_A^2 = 0$ 
+- $H_0 : σ_B^2 = 0$ 
+- $H_0 : σ^2_{AB} = 0$ 
+
+donde las hipótesis alternativas, en cada caso, afirman que la varianza es mayor que cero.
+
+```{r, warning=FALSE, message=FALSE}
+Anova(modelo4, type="III")
+```
+
+Concluimos que los factores tecnico y aula, y la interacción son significativos. Es importante, resaltar que a diferencia de los modelos de efectos fijos ahora NO haremos comparaciones múltiples, pasaremos a evaluar las componentes de la varianza individualmente.
+
+<style type="text/css">
+    ol { list-style-type: upper-alpha; }
+</style>
+
+a) Varianza del error: 62.64
+b) Varianza de la interacción: 16.4
+c) Varianza del factor tecnico: 388.6
+d) Varianza del factor aula: 141.8
+
+La estimación de la varianza de la variable respuesta es = 62.64 + 16.4 + 388.6 + 141.8 = **609.44** y por tanto, el porcentaje de las componentes de la varianza son:
+
+<style type="text/css">
+    ol { list-style-type: upper-alpha; }
+</style>
+
+a) Componente de la Varianza del error: 10.27%
+b) Componente de la Varianza de la interacción: 2.7%
+c) Componente de la Varianza del factor tecnico: 63.76%
+d) Componente de la Varianza del factor aula: 23.26%
+
+Concluimos, que el *factor tecnico* es la causa principal de variabilidad en la respuesta (63.76%%) , seguido del *factor aula* (23.26%).
+
