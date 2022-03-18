@@ -1,3 +1,2 @@
 # DiegoV
-#Algunos ejemplos de estudios o trabajos sobre Bioestadistica (principalmente reproduccion de trabajos ya realizados)
-#A su vez, analisis de la evolucion de Coronavirus en Uruguay.
+Working Papers on Statistics (mainly works on my MSc in Statistics), Cliometry (my PhD) and Data Science focused on value impact
